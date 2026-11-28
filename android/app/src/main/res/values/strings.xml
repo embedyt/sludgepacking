@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">sludge-mobile</string>
+    <string name="title_activity_main">sludge-mobile</string>
+    <string name="package_name">rainmark.sludge.app</string>
+    <string name="custom_url_scheme">rainmark.sludge.app</string>
+</resources>

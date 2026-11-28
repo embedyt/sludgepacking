@@ -1,0 +1,336 @@
+:root {
+  --rust-bg: rgba(16, 18, 21, 0.88);
+  --rust-bg-solid: #141619;
+  --rust-panel: rgba(24, 27, 31, 0.92);
+  --rust-border: rgba(196, 178, 148, 0.22);
+  --rust-border-strong: rgba(217, 119, 6, 0.72);
+  --rust-amber: #d97706;
+  --rust-rust: #c2410c;
+  --rust-sand: #e5dfd3;
+  --rust-muted: #9ca3af;
+  --rust-hp: #7cb342;
+  --rust-hp-ghost: #dc2626;
+  --rust-hunger: #d97706;
+  --rust-stamina: #38bdf8;
+}
+
+* {
+  box-sizing: border-box;
+  user-select: none;
+}
+
+input,
+textarea {
+  user-select: text;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: #0e1116;
+  color: var(--rust-sand);
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.webgl-mount {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.webgl-mount canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.hud-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.hud-interactive {
+  pointer-events: auto;
+}
+
+/* Industrial Rust-style surface without backdrop-filter over WebGL */
+.rust-surface {
+  background: var(--rust-bg);
+  border: 1px solid var(--rust-border);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.rust-surface-solid {
+  background: var(--rust-bg-solid);
+  border: 1px solid var(--rust-border);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* Center Reticle */
+.crosshair-anchor {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.crosshair-ring {
+  width: 18px;
+  height: 18px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.crosshair-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.9);
+}
+
+.crosshair-tick {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.85);
+}
+
+.crosshair-tick.top {
+  width: 1.5px;
+  height: 4px;
+  top: 0;
+}
+
+.crosshair-tick.bottom {
+  width: 1.5px;
+  height: 4px;
+  bottom: 0;
+}
+
+.crosshair-tick.left {
+  width: 4px;
+  height: 1.5px;
+  left: 0;
+}
+
+.crosshair-tick.right {
+  width: 4px;
+  height: 1.5px;
+  right: 0;
+}
+
+.hitmarker {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(0.75);
+  transition: opacity 70ms ease-out, transform 70ms ease-out;
+}
+
+.hitmarker.active {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Vital bars */
+.vital-bar-track {
+  position: relative;
+  height: 18px;
+  background: rgba(12, 14, 17, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.vital-bar-ghost {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  transition: width 420ms ease-out;
+}
+
+.vital-bar-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  transition: width 90ms linear;
+}
+
+/* Escalating HP bar difficulty patterns */
+.hp-pattern-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.hp-pattern-brutal .hp-pattern-overlay {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(0, 0, 0, 0.28) 0px,
+    rgba(0, 0, 0, 0.28) 3px,
+    transparent 3px,
+    transparent 8px
+  );
+}
+
+.hp-pattern-hardcore .hp-pattern-overlay {
+  background-image:
+    repeating-linear-gradient(
+      -45deg,
+      rgba(127, 29, 29, 0.42) 0px,
+      rgba(127, 29, 29, 0.42) 2px,
+      transparent 2px,
+      transparent 7px
+    ),
+    repeating-linear-gradient(
+      45deg,
+      rgba(0, 0, 0, 0.34) 0px,
+      rgba(0, 0, 0, 0.34) 2px,
+      transparent 2px,
+      transparent 7px
+    );
+}
+
+.hp-pattern-ultrahardcore .hp-pattern-overlay {
+  background-image:
+    repeating-linear-gradient(
+      -45deg,
+      rgba(185, 28, 28, 0.46) 0px,
+      rgba(185, 28, 28, 0.46) 2px,
+      transparent 2px,
+      transparent 5px
+    ),
+    repeating-linear-gradient(
+      45deg,
+      rgba(0, 0, 0, 0.48) 0px,
+      rgba(0, 0, 0, 0.48) 2px,
+      transparent 2px,
+      transparent 5px
+    ),
+    linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.08) 0%,
+      transparent 25%,
+      rgba(0, 0, 0, 0.25) 50%,
+      transparent 75%,
+      rgba(255, 255, 255, 0.08) 100%
+    );
+}
+
+.hp-pattern-true_hardcore {
+  border-color: rgba(239, 68, 68, 0.65);
+  box-shadow: inset 0 0 8px rgba(153, 27, 27, 0.7);
+}
+
+.hp-pattern-true_hardcore .hp-pattern-overlay {
+  background-image:
+    repeating-linear-gradient(
+      -55deg,
+      rgba(220, 38, 38, 0.52) 0px,
+      rgba(220, 38, 38, 0.52) 2px,
+      rgba(10, 10, 12, 0.52) 2px,
+      rgba(10, 10, 12, 0.52) 4px,
+      transparent 4px,
+      transparent 7px
+    ),
+    repeating-linear-gradient(
+      55deg,
+      rgba(0, 0, 0, 0.55) 0px,
+      rgba(0, 0, 0, 0.55) 2px,
+      transparent 2px,
+      transparent 6px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(254, 202, 202, 0.14) 0px,
+      rgba(254, 202, 202, 0.14) 1px,
+      transparent 1px,
+      transparent 12px
+    );
+}
+
+input[type="range"].sludge-range {
+  accent-color: #4ade80;
+  cursor: pointer;
+}
+
+/* Hotbar */
+.hotbar-slot {
+  width: 62px;
+  height: 62px;
+  background: rgba(18, 20, 24, 0.9);
+  border: 1px solid rgba(229, 223, 211, 0.18);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 100ms ease, transform 100ms ease, background-color 100ms ease;
+}
+
+.hotbar-slot.selected {
+  background: rgba(34, 30, 24, 0.96);
+  border: 2px solid #e07a24;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(224, 122, 36, 0.25);
+}
+
+/* Radial build wheel */
+.radial-slice {
+  cursor: pointer;
+  transition: fill 110ms ease, transform 110ms ease;
+}
+
+/* Low-HP vignette */
+.low-hp-vignette {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 8;
+  background: radial-gradient(circle at center, transparent 52%, rgba(165, 20, 20, 0.55) 100%);
+  transition: opacity 250ms ease;
+}
+
+/* Text shadow for HUD numerals */
+.hud-text-shadow {
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.92), 0 0 6px rgba(0, 0, 0, 0.6);
+}
+
+@media (max-width: 900px), (max-height: 500px) {
+  .hotbar-slot {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+@media (max-width: 420px) {
+  .hotbar-slot {
+    width: 39px;
+    height: 39px;
+  }
+}

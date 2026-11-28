@@ -1,0 +1,155 @@
+name: Build APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web
+        run: npm run build
+
+      - name: Add Android platform
+        run: |
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Set version 1.3.0
+        run: |
+          python3 -c '
+          from pathlib import Path
+          import re
+
+          gradle = Path("android/app/build.gradle")
+          text = gradle.read_text(encoding="utf-8")
+          text = re.sub(r"versionCode\s+\d+", "versionCode 130", text)
+          text = re.sub(r"versionName\s+\"[^\"]+\"", "versionName \"1.3.0\"", text)
+          gradle.write_text(text, encoding="utf-8")
+          '
+
+      - name: Apply app icon
+        run: |
+          python3 -c '
+          from pathlib import Path
+          from PIL import Image
+
+          src = Path("sludgeicon.png")
+          res = Path("android/app/src/main/res")
+
+          if src.exists() and res.exists():
+              img = Image.open(src).convert("RGBA")
+              sizes = {
+                  "mipmap-mdpi": 48,
+                  "mipmap-hdpi": 72,
+                  "mipmap-xhdpi": 96,
+                  "mipmap-xxhdpi": 144,
+                  "mipmap-xxxhdpi": 192,
+              }
+              for folder, px in sizes.items():
+                  out_dir = res / folder
+                  out_dir.mkdir(parents=True, exist_ok=True)
+                  resized = img.resize((px, px), Image.Resampling.LANCZOS)
+                  for name in ("ic_launcher.png", "ic_launcher_round.png", "ic_launcher_foreground.png"):
+                      resized.save(out_dir / name, format="PNG")
+          '
+
+      - name: Set landscape orientation
+        run: |
+          python3 -c '
+          from pathlib import Path
+          import re
+
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          text = manifest.read_text(encoding="utf-8")
+
+          if "android:screenOrientation=" in text:
+              text = re.sub(r"android:screenOrientation=\"[^\"]+\"", "android:screenOrientation=\"sensorLandscape\"", text)
+          else:
+              text = text.replace("<activity", "<activity\n            android:screenOrientation=\"sensorLandscape\"", 1)
+
+          manifest.write_text(text, encoding="utf-8")
+          '
+
+      - name: Enable fullscreen
+        run: |
+          python3 -c '
+          from pathlib import Path
+
+          styles = Path("android/app/src/main/res/values/styles.xml")
+          if styles.exists():
+              s_text = styles.read_text(encoding="utf-8")
+              if "AppTheme.NoActionBarLaunch" in s_text and "android:windowFullscreen" not in s_text:
+                  s_text = s_text.replace(
+                      "<style name=\"AppTheme.NoActionBarLaunch\" parent=\"Theme.SplashScreen\">",
+                      "<style name=\"AppTheme.NoActionBarLaunch\" parent=\"Theme.SplashScreen\">\n        <item name=\"android:windowFullscreen\">true</item>\n        <item name=\"android:windowDrawsSystemBarBackgrounds\">false</item>"
+                  )
+              if "AppTheme.NoActionBar" in s_text and "android:windowFullscreen" not in s_text:
+                  s_text = s_text.replace(
+                      "<style name=\"AppTheme.NoActionBar\" parent=\"Theme.AppCompat.Light.DarkActionBar\">",
+                      "<style name=\"AppTheme.NoActionBar\" parent=\"Theme.AppCompat.Light.DarkActionBar\">\n        <item name=\"android:windowFullscreen\">true</item>"
+                  )
+              styles.write_text(s_text, encoding="utf-8")
+
+          main_act = Path("android/app/src/main/java")
+          for java_file in main_act.rglob("MainActivity.java"):
+              j_text = java_file.read_text(encoding="utf-8")
+              if "WindowInsetsControllerCompat" not in j_text and "onCreate(" in j_text:
+                  import_block = (
+                      "import androidx.core.view.WindowCompat;\n"
+                      "import androidx.core.view.WindowInsetsCompat;\n"
+                      "import androidx.core.view.WindowInsetsControllerCompat;\n"
+                      "import android.os.Bundle;\n"
+                  )
+                  j_text = j_text.replace("import android.os.Bundle;\n", "")
+                  j_text = import_block + j_text
+                  fullscreen_code = """
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        WindowInsetsControllerCompat controller = new WindowInsetsControllerCompat(getWindow(), getWindow().getDecorView());
+        controller.hide(WindowInsetsCompat.Type.statusBars() | WindowInsetsCompat.Type.navigationBars());
+        controller.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+    }
+"""
+                  j_text = j_text.replace("public class MainActivity extends BridgeActivity {", "public class MainActivity extends BridgeActivity {" + fullscreen_code, 1)
+                  java_file.write_text(j_text, encoding="utf-8")
+          '
+
+      - name: Build APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: sludge-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk

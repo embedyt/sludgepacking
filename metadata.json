@@ -1,0 +1,8 @@
+{
+  "name": "Rustfall Island",
+  "description": "3D First-Person Survival & Base-Building Game inspired by Rust with procedural terrain, gathering, crafting, snap-to-grid base building, wildlife, and nighttime raider defense.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
